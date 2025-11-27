@@ -40,6 +40,29 @@ st.markdown("""
         border-radius: 0.5rem;
         text-align: center;
     }
+    .active-temp-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .active-temp-value {
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+    }
+    .active-temp-city {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .active-temp-conditions {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -87,6 +110,87 @@ st.markdown(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 try:
     df = load_forecast_data()
     alerts_df = load_alerts_data()
+
+    # ========================================================================
+    # ACTIVE CURRENT TEMPERATURES (NEW SECTION!)
+    # ========================================================================
+    
+    st.markdown("### 🌡️ Active Current Temperatures")
+    
+    # Get today's data (most recent date in dataset represents "current" conditions)
+    today = df['date'].max()
+    current_temps = df[df['date'] == today].sort_values('city')
+    
+    if len(current_temps) > 0:
+        # Create columns for each city
+        num_cities = len(current_temps)
+        cols = st.columns(min(num_cities, 4))  # Max 4 per row
+        
+        for idx, (_, row) in enumerate(current_temps.iterrows()):
+            col_idx = idx % 4
+            with cols[col_idx]:
+                # Temperature color coding
+                temp = row['temp_avg']
+                if temp >= 90:
+                    bg_color = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"  # Hot - Red/Pink
+                elif temp >= 75:
+                    bg_color = "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)"  # Warm - Orange
+                elif temp >= 60:
+                    bg_color = "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)"  # Mild - Teal/Pink
+                else:
+                    bg_color = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cool - Blue/Purple
+                
+                st.markdown(f"""
+                    <div style="background: {bg_color}; padding: 1.5rem; border-radius: 1rem; 
+                                color: white; text-align: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                                margin-bottom: 1rem;">
+                        <div style="font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem;">
+                            📍 {row['city']}
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: bold; margin: 0.5rem 0;">
+                            {row['temp_avg']:.0f}°F
+                        </div>
+                        <div style="font-size: 0.9rem; opacity: 0.95;">
+                            High: {row['temp_max']:.0f}°F | Low: {row['temp_min']:.0f}°F
+                        </div>
+                        <div style="font-size: 1rem; margin-top: 0.5rem; opacity: 0.9;">
+                            {row['conditions']}
+                        </div>
+                        <div style="font-size: 0.85rem; margin-top: 0.3rem; opacity: 0.85;">
+                            💧 {row['humidity']:.0f}% | 💨 {row['wind_speed']:.0f} mph
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        
+        # Add a summary row with additional current conditions
+        st.markdown("#### 📊 Current Conditions Summary")
+        summary_cols = st.columns(4)
+        
+        with summary_cols[0]:
+            hottest_city = current_temps.loc[current_temps['temp_max'].idxmax()]
+            st.metric("🔥 Hottest Location", 
+                     f"{hottest_city['city']}", 
+                     f"{hottest_city['temp_max']:.0f}°F")
+        
+        with summary_cols[1]:
+            coolest_city = current_temps.loc[current_temps['temp_min'].idxmin()]
+            st.metric("❄️ Coolest Location", 
+                     f"{coolest_city['city']}", 
+                     f"{coolest_city['temp_min']:.0f}°F")
+        
+        with summary_cols[2]:
+            highest_humidity = current_temps.loc[current_temps['humidity'].idxmax()]
+            st.metric("💧 Most Humid", 
+                     f"{highest_humidity['city']}", 
+                     f"{highest_humidity['humidity']:.0f}%")
+        
+        with summary_cols[3]:
+            highest_wind = current_temps.loc[current_temps['wind_speed'].idxmax()]
+            st.metric("💨 Windiest", 
+                     f"{highest_wind['city']}", 
+                     f"{highest_wind['wind_speed']:.0f} mph")
+    
+    st.markdown("---")
 
     # ========================================================================
     # SEVERE WEATHER ALERTS BANNER (Top Priority!)
